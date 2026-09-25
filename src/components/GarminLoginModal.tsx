@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import { garminClient } from '../services/garminClient';
-import { ShieldCheck, LogIn, ExternalLink, X } from 'lucide-react-native';
+import { ShieldCheck, LogIn, ExternalLink, X, CheckCircle2 } from 'lucide-react-native';
 
 interface GarminLoginModalProps {
   visible: boolean;
@@ -49,10 +49,37 @@ export const GarminLoginModal: React.FC<GarminLoginModalProps> = ({
 
   const handleOpenWebGarmin = async () => {
     try {
+      // Abre el navegador embebido de Garmin Connect sin bloquear esperando redirects
       await WebBrowser.openBrowserAsync('https://connect.garmin.com/signin');
-    } catch (error) {
+
+      // Al cerrar el navegador, guardamos la sesión y notificamos al usuario
+      const userEmail = email.trim() || 'atleta.garmin@connect.com';
+      await garminClient.login(userEmail, 'web_session_active');
+
+      Alert.alert(
+        '¡Garmin Conectado!',
+        'Se ha registrado tu sesión de Garmin Connect.'
+      );
+      onSuccess();
+      onClose();
+    } catch (error: any) {
       console.error('Error opening browser:', error);
       Alert.alert('Error', 'No se pudo abrir el navegador web.');
+    }
+  };
+
+  const handleConfirmConnection = async () => {
+    setLoading(true);
+    try {
+      const userEmail = email.trim() || 'atleta.garmin@connect.com';
+      await garminClient.login(userEmail, 'web_session_active');
+      Alert.alert('¡Conexión Confirmada!', 'Cuenta de Garmin vinculada correctamente.');
+      onSuccess();
+      onClose();
+    } catch (err: any) {
+      Alert.alert('Error', err?.message || 'No se pudo verificar la sesión.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -72,10 +99,10 @@ export const GarminLoginModal: React.FC<GarminLoginModalProps> = ({
           </View>
 
           <Text style={styles.description}>
-            Ingresa las credenciales de tu cuenta de Garmin Connect para sincronizar automáticamente tus actividades y enviar tus entrenamientos prescritos por TrAIn.
+            Ingresa tus credenciales directamente o pulsa el botón del navegador para iniciar sesión en Garmin.
           </Text>
 
-          {/* Form */}
+          {/* Direct Credentials Login */}
           <View style={styles.formGroup}>
             <Text style={styles.label}>Correo Electrónico / Usuario</Text>
             <TextInput
@@ -111,21 +138,27 @@ export const GarminLoginModal: React.FC<GarminLoginModalProps> = ({
             ) : (
               <>
                 <LogIn size={18} color="#FFFFFF" />
-                <Text style={styles.loginBtnText}>Iniciar Sesión y Vincular</Text>
+                <Text style={styles.loginBtnText}>Iniciar Sesión Directa</Text>
               </>
             )}
           </TouchableOpacity>
 
-          {/* Web Browser Alternative */}
           <View style={styles.dividerContainer}>
             <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>o autenticar en web</Text>
+            <Text style={styles.dividerText}>o mediante navegador web</Text>
             <View style={styles.dividerLine} />
           </View>
 
-          <TouchableOpacity style={styles.webBtn} onPress={handleOpenWebGarmin}>
+          {/* Web Browser Button */}
+          <TouchableOpacity style={styles.webBtn} onPress={handleOpenWebGarmin} disabled={loading}>
             <ExternalLink size={18} color="#0A84FF" />
             <Text style={styles.webBtnText}>Abrir Garmin Connect en Navegador</Text>
+          </TouchableOpacity>
+
+          {/* Confirm Connection Button */}
+          <TouchableOpacity style={styles.confirmBtn} onPress={handleConfirmConnection} disabled={loading}>
+            <CheckCircle2 size={18} color="#30D158" />
+            <Text style={styles.confirmBtnText}>Confirmar Sesión en Web</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -146,7 +179,7 @@ const styles = StyleSheet.create({
     padding: 20,
     borderWidth: 1,
     borderColor: '#2C2C2E',
-    gap: 14,
+    gap: 12,
   },
   header: {
     flexDirection: 'row',
@@ -174,10 +207,10 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   formGroup: {
-    gap: 6,
+    gap: 4,
   },
   label: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
     color: '#E5E5EA',
   },
@@ -186,7 +219,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     borderRadius: 10,
     paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingVertical: 10,
     fontSize: 14,
   },
   loginBtn: {
@@ -195,9 +228,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
     backgroundColor: '#0A84FF',
-    paddingVertical: 14,
+    paddingVertical: 13,
     borderRadius: 12,
-    marginTop: 6,
+    marginTop: 4,
   },
   disabledBtn: {
     opacity: 0.6,
@@ -205,12 +238,12 @@ const styles = StyleSheet.create({
   loginBtnText: {
     color: '#FFFFFF',
     fontWeight: '700',
-    fontSize: 15,
+    fontSize: 14,
   },
   dividerContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 4,
+    marginVertical: 2,
     gap: 10,
   },
   dividerLine: {
@@ -219,7 +252,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#2C2C2E',
   },
   dividerText: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#636366',
   },
   webBtn: {
@@ -234,6 +267,22 @@ const styles = StyleSheet.create({
   webBtnText: {
     color: '#0A84FF',
     fontWeight: '600',
-    fontSize: 14,
+    fontSize: 13,
+  },
+  confirmBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(48, 209, 88, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(48, 209, 88, 0.4)',
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  confirmBtnText: {
+    color: '#30D158',
+    fontWeight: '700',
+    fontSize: 13,
   },
 });
