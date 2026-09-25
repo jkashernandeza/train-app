@@ -1,69 +1,53 @@
-import { SymbolView } from 'expo-symbols';
-import { Link, Tabs } from 'expo-router';
-import { Pressable } from 'react-native';
-
-import Colors from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
-import { useClientOnlyValue } from '@/components/useClientOnlyValue';
+import React from 'react';
+import { Tabs } from 'expo-router';
+import { Activity, Bot, Calendar } from 'lucide-react-native';
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
-
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme].tint,
-        headerTitle: 'TrAIn',
-        // Disable the static render of the header on web
-        // to prevent a hydration error in React Navigation v6.
-        headerShown: useClientOnlyValue(false, true),
+        headerStyle: {
+          backgroundColor: '#121212',
+        },
+        headerTitleStyle: {
+          color: '#FFFFFF',
+          fontWeight: 'bold',
+          fontSize: 20,
+        },
+        headerTitleAlign: 'center',
+        headerTintColor: '#FFFFFF',
+        tabBarStyle: {
+          backgroundColor: '#1C1C1E',
+          borderTopColor: '#2C2C2E',
+          height: 60,
+          paddingBottom: 8,
+          paddingTop: 8,
+        },
+        tabBarActiveTintColor: '#0A84FF',
+        tabBarInactiveTintColor: '#8E8E93',
       }}>
       <Tabs.Screen
         name="index"
         options={{
-          title: 'TrAIn',
-          tabBarIcon: ({ color }) => (
-            <SymbolView
-              name={{
-                ios: 'chevron.left.forwardslash.chevron.right',
-                android: 'code',
-                web: 'code',
-              }}
-              tintColor={color}
-              size={28}
-            />
-          ),
-          headerRight: () => (
-            <Link href="/modal" asChild>
-              <Pressable style={{ marginRight: 15 }}>
-                {({ pressed }) => (
-                  <SymbolView
-                    name={{ ios: 'info.circle', android: 'info', web: 'info' }}
-                    size={25}
-                    tintColor={Colors[colorScheme].text}
-                    style={{ opacity: pressed ? 0.5 : 1 }}
-                  />
-                )}
-              </Pressable>
-            </Link>
-          ),
+          title: 'Dashboard',
+          headerTitle: 'TrAIn',
+          tabBarIcon: ({ color, size }) => <Activity size={size || 22} color={color} />,
         }}
       />
       <Tabs.Screen
-        name="two"
+        name="chat"
         options={{
-          title: 'Tab Two',
-          tabBarIcon: ({ color }) => (
-            <SymbolView
-              name={{
-                ios: 'chevron.left.forwardslash.chevron.right',
-                android: 'code',
-                web: 'code',
-              }}
-              tintColor={color}
-              size={28}
-            />
-          ),
+          title: 'Coach',
+          headerTitle: 'TrAIn Coach AI',
+          tabBarIcon: ({ color, size }) => <Bot size={size || 22} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="history"
+        options={{
+          title: 'Historial',
+          headerTitle: 'Historial de Actividades',
+          tabBarIcon: ({ color, size }) => <Calendar size={size || 22} color={color} />,
         }}
       />
     </Tabs>
