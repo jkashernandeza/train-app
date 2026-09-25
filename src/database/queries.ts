@@ -34,6 +34,11 @@ export function getActivityById(activityId: string): Activity | null {
   return db.getFirstSync<Activity>('SELECT * FROM activities WHERE activityId = ?;', [activityId]);
 }
 
+export function getLatestActivityDate(): string | null {
+  const result = db.getFirstSync<{ date: string }>('SELECT date FROM activities ORDER BY date DESC LIMIT 1;');
+  return result ? result.date : null;
+}
+
 // --- Check-ins Queries ---
 export function insertCheckIn(checkIn: Omit<CheckIn, 'id'>): number {
   const statement = db.prepareSync(`
