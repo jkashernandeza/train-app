@@ -12,83 +12,48 @@ export interface GarminAuthTokens {
   expiresAt?: string;
 }
 
-// Stable initial dataset representing running activities since the start of the year 2026
-const DEMO_GARMIN_ACTIVITIES: Activity[] = [
-  {
-    activityId: 'garmin_act_20260110_1001',
-    date: '2026-01-10T08:30:00.000Z',
-    distanceMeters: 5200,
-    durationSeconds: 1680, // 28 mins
-    avgPace: '5:23',
-    avgHr: 142,
-    maxHr: 158,
-    elevationGain: 35,
-    rawSplitsJson: JSON.stringify([
-      { splitIndex: 1, distanceMeters: 1000, durationSeconds: 325, avgPace: '5:25', avgHr: 138 },
-      { splitIndex: 2, distanceMeters: 1000, durationSeconds: 320, avgPace: '5:20', avgHr: 142 },
-      { splitIndex: 3, distanceMeters: 1000, durationSeconds: 318, avgPace: '5:18', avgHr: 145 },
-    ]),
-    syncedAt: new Date().toISOString(),
-  },
-  {
-    activityId: 'garmin_act_20260124_1002',
-    date: '2026-01-24T09:00:00.000Z',
-    distanceMeters: 8000,
-    durationSeconds: 2560, // 42m 40s
-    avgPace: '5:20',
-    avgHr: 146,
-    maxHr: 162,
-    elevationGain: 48,
-    rawSplitsJson: JSON.stringify([
-      { splitIndex: 1, distanceMeters: 1000, durationSeconds: 320, avgPace: '5:20', avgHr: 140 },
-      { splitIndex: 2, distanceMeters: 1000, durationSeconds: 315, avgPace: '5:15', avgHr: 148 },
-    ]),
-    syncedAt: new Date().toISOString(),
-  },
-  {
-    activityId: 'garmin_act_20260212_1003',
-    date: '2026-02-12T07:45:00.000Z',
-    distanceMeters: 10200,
-    durationSeconds: 3240, // 54 mins
-    avgPace: '5:17',
-    avgHr: 151,
-    maxHr: 170,
-    elevationGain: 82,
-    rawSplitsJson: JSON.stringify([
-      { splitIndex: 1, distanceMeters: 1000, durationSeconds: 318, avgPace: '5:18', avgHr: 145 },
-      { splitIndex: 2, distanceMeters: 1000, durationSeconds: 312, avgPace: '5:12', avgHr: 154 },
-    ]),
-    syncedAt: new Date().toISOString(),
-  },
-  {
-    activityId: 'garmin_act_20260305_1004',
-    date: '2026-03-05T08:00:00.000Z',
-    distanceMeters: 6500,
-    durationSeconds: 2040, // 34 mins
-    avgPace: '5:13',
-    avgHr: 149,
-    maxHr: 165,
-    elevationGain: 40,
-    rawSplitsJson: JSON.stringify([
-      { splitIndex: 1, distanceMeters: 1000, durationSeconds: 310, avgPace: '5:10', avgHr: 148 },
-    ]),
-    syncedAt: new Date().toISOString(),
-  },
-  {
-    activityId: 'garmin_act_20260320_1005',
-    date: '2026-03-20T07:30:00.000Z',
-    distanceMeters: 12000,
-    durationSeconds: 3780, // 63 mins
-    avgPace: '5:15',
-    avgHr: 153,
-    maxHr: 172,
-    elevationGain: 110,
-    rawSplitsJson: JSON.stringify([
-      { splitIndex: 1, distanceMeters: 1000, durationSeconds: 315, avgPace: '5:15', avgHr: 150 },
-    ]),
-    syncedAt: new Date().toISOString(),
-  },
-];
+function generateDemoGarminActivities(count: number = 100): Activity[] {
+  const list: Activity[] = [];
+  const baseTime = new Date('2026-09-24T08:00:00.000Z').getTime();
+
+  for (let i = 0; i < count; i++) {
+    const offsetMs = i * 2.6 * 24 * 60 * 60 * 1000;
+    const actDate = new Date(baseTime - offsetMs);
+    const isoDate = actDate.toISOString();
+
+    const distM = 5000 + ((i * 350) % 15000);
+    const paceSec = 300 + ((i * 13) % 75);
+    const mins = Math.floor(paceSec / 60);
+    const secs = Math.floor(paceSec % 60);
+    const avgPace = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+    const durSec = Math.round((distM / 1000) * paceSec);
+    const avgHr = 138 + ((i * 3) % 25);
+    const maxHr = avgHr + 15 + (i % 10);
+    const elev = 25 + ((i * 19) % 150);
+
+    const pad = (count - i).toString().padStart(4, '0');
+    const ymd = isoDate.substring(0, 10).replace(/-/g, '');
+
+    list.push({
+      activityId: `garmin_act_${ymd}_${pad}`,
+      date: isoDate,
+      distanceMeters: distM,
+      durationSeconds: durSec,
+      avgPace: avgPace,
+      avgHr: avgHr,
+      maxHr: maxHr,
+      elevationGain: elev,
+      rawSplitsJson: JSON.stringify([
+        { splitIndex: 1, distanceMeters: 1000, durationSeconds: paceSec, avgPace, avgHr },
+      ]),
+      syncedAt: '2026-09-24T21:50:00.000Z',
+    });
+  }
+
+  return list;
+}
+
+const DEMO_GARMIN_ACTIVITIES: Activity[] = generateDemoGarminActivities(100);
 
 export class GarminClient {
   /**

@@ -237,7 +237,14 @@ export default function DashboardScreen() {
 
           {latestActivity ? (
             <View style={styles.activityBody}>
-              <Text style={styles.activityDate}>{latestActivity.date}</Text>
+              <Text style={styles.activityDate}>
+                {new Date(latestActivity.date).toLocaleDateString('es-ES', {
+                  weekday: 'long',
+                  day: 'numeric',
+                  month: 'long',
+                  year: 'numeric',
+                })}
+              </Text>
               <View style={styles.statsRow}>
                 <View style={styles.statItem}>
                   <Text style={styles.statLabel}>Distancia</Text>

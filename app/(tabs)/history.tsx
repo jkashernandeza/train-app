@@ -91,6 +91,12 @@ export default function HistoryScreen() {
           const checkIn: CheckIn | null = getCheckInByActivityId(item.activityId);
           const km = (item.distanceMeters / 1000).toFixed(2);
           const mins = Math.floor(item.durationSeconds / 60);
+          const formattedDate = new Date(item.date).toLocaleDateString('es-ES', {
+            weekday: 'short',
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric',
+          });
 
           return (
             <View style={styles.activityCard}>
@@ -99,7 +105,7 @@ export default function HistoryScreen() {
                   <RunIcon size={20} color="#30D158" />
                   <Text style={styles.activityTitle}>Carrera en Exterior</Text>
                 </View>
-                <Text style={styles.dateText}>{item.date}</Text>
+                <Text style={styles.dateText}>{formattedDate}</Text>
               </View>
 
               <View style={styles.metricsGrid}>
