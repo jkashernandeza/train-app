@@ -1,6 +1,7 @@
 import { garminClient } from './garminClient';
 import {
   getAllActivities,
+  getActivityById,
   getLatestActivityDate,
   insertActivity,
 } from '../database/queries';
@@ -18,10 +19,10 @@ export class SyncService {
   }
 
   /**
-   * Reads the latest activity date in SQLite, fetches only newer activities from Garmin Connect,
-   * and saves them to the local SQLite database.
+   * Reads the latest activity date in SQLite, fetches activities from Garmin Connect,
+   * and saves them to the local SQLite database without creating duplicates.
    */
-  async syncLatestActivities(limit: number = 20): Promise<number> {
+  async syncLatestActivities(limit: number = 50): Promise<number> {
     if (this.status.isSyncing) {
       console.warn('Sync is already in progress.');
       return 0;
@@ -34,19 +35,23 @@ export class SyncService {
       // 1. Read latest date saved in SQLite database
       const latestDate = getLatestActivityDate();
 
-      // 2. Fetch recent activities from Garmin starting after latestDate
+      // 2. Fetch activities from Garmin Connect
+      // If latestDate is null (empty DB), fetch all activities since start of year.
       const fetchedActivities = await garminClient.getActivities(latestDate || undefined, limit);
 
-      // 3. Insert newly fetched activities into SQLite
-      let insertedCount = 0;
+      // 3. Insert into SQLite checking for existing IDs
+      let newInsertedCount = 0;
       for (const activity of fetchedActivities) {
+        const existing = getActivityById(activity.activityId);
+        if (!existing) {
+          newInsertedCount++;
+        }
         insertActivity(activity);
-        insertedCount++;
       }
 
       this.status.lastSyncedAt = new Date().toISOString();
       this.status.isSyncing = false;
-      return insertedCount;
+      return newInsertedCount;
     } catch (error: any) {
       this.status.isSyncing = false;
       this.status.error = error?.message || 'Synchronization failed.';

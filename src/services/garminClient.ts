@@ -12,9 +12,85 @@ export interface GarminAuthTokens {
   expiresAt?: string;
 }
 
-export class GarminClient {
-  private baseURL = 'https://connect.garmin.com';
+// Stable initial dataset representing running activities since the start of the year 2026
+const DEMO_GARMIN_ACTIVITIES: Activity[] = [
+  {
+    activityId: 'garmin_act_20260110_1001',
+    date: '2026-01-10T08:30:00.000Z',
+    distanceMeters: 5200,
+    durationSeconds: 1680, // 28 mins
+    avgPace: '5:23',
+    avgHr: 142,
+    maxHr: 158,
+    elevationGain: 35,
+    rawSplitsJson: JSON.stringify([
+      { splitIndex: 1, distanceMeters: 1000, durationSeconds: 325, avgPace: '5:25', avgHr: 138 },
+      { splitIndex: 2, distanceMeters: 1000, durationSeconds: 320, avgPace: '5:20', avgHr: 142 },
+      { splitIndex: 3, distanceMeters: 1000, durationSeconds: 318, avgPace: '5:18', avgHr: 145 },
+    ]),
+    syncedAt: new Date().toISOString(),
+  },
+  {
+    activityId: 'garmin_act_20260124_1002',
+    date: '2026-01-24T09:00:00.000Z',
+    distanceMeters: 8000,
+    durationSeconds: 2560, // 42m 40s
+    avgPace: '5:20',
+    avgHr: 146,
+    maxHr: 162,
+    elevationGain: 48,
+    rawSplitsJson: JSON.stringify([
+      { splitIndex: 1, distanceMeters: 1000, durationSeconds: 320, avgPace: '5:20', avgHr: 140 },
+      { splitIndex: 2, distanceMeters: 1000, durationSeconds: 315, avgPace: '5:15', avgHr: 148 },
+    ]),
+    syncedAt: new Date().toISOString(),
+  },
+  {
+    activityId: 'garmin_act_20260212_1003',
+    date: '2026-02-12T07:45:00.000Z',
+    distanceMeters: 10200,
+    durationSeconds: 3240, // 54 mins
+    avgPace: '5:17',
+    avgHr: 151,
+    maxHr: 170,
+    elevationGain: 82,
+    rawSplitsJson: JSON.stringify([
+      { splitIndex: 1, distanceMeters: 1000, durationSeconds: 318, avgPace: '5:18', avgHr: 145 },
+      { splitIndex: 2, distanceMeters: 1000, durationSeconds: 312, avgPace: '5:12', avgHr: 154 },
+    ]),
+    syncedAt: new Date().toISOString(),
+  },
+  {
+    activityId: 'garmin_act_20260305_1004',
+    date: '2026-03-05T08:00:00.000Z',
+    distanceMeters: 6500,
+    durationSeconds: 2040, // 34 mins
+    avgPace: '5:13',
+    avgHr: 149,
+    maxHr: 165,
+    elevationGain: 40,
+    rawSplitsJson: JSON.stringify([
+      { splitIndex: 1, distanceMeters: 1000, durationSeconds: 310, avgPace: '5:10', avgHr: 148 },
+    ]),
+    syncedAt: new Date().toISOString(),
+  },
+  {
+    activityId: 'garmin_act_20260320_1005',
+    date: '2026-03-20T07:30:00.000Z',
+    distanceMeters: 12000,
+    durationSeconds: 3780, // 63 mins
+    avgPace: '5:15',
+    avgHr: 153,
+    maxHr: 172,
+    elevationGain: 110,
+    rawSplitsJson: JSON.stringify([
+      { splitIndex: 1, distanceMeters: 1000, durationSeconds: 315, avgPace: '5:15', avgHr: 150 },
+    ]),
+    syncedAt: new Date().toISOString(),
+  },
+];
 
+export class GarminClient {
   /**
    * Loads saved Garmin session tokens from SecureStore.
    */
@@ -50,16 +126,13 @@ export class GarminClient {
 
       console.log(`Iniciando sesión en Garmin Connect para: ${email}`);
 
-      // Perform authentication handshake against Garmin Connect SSO endpoints.
-      // In production, this completes the SSO ticket exchange and OAuth token generation.
       const mockTokens: GarminAuthTokens = {
-        oauthToken: `garmin_token_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        oauthToken: `garmin_token_${Date.now()}`,
         oauthTokenSecret: `garmin_secret_${Date.now()}`,
         sessionCookies: `GARMIN_SESSION_ID=${Date.now()}`,
         expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
       };
 
-      // Store credentials and tokens in SecureStore
       await SecureStore.setItemAsync(GARMIN_EMAIL_KEY, email);
       await SecureStore.setItemAsync(GARMIN_TOKEN_KEY, mockTokens.oauthToken);
       await SecureStore.setItemAsync(GARMIN_AUTH_DATA_KEY, JSON.stringify(mockTokens));
@@ -82,40 +155,25 @@ export class GarminClient {
 
   /**
    * Fetches activities directly from Garmin Connect API filtered by optional start date and limit.
+   * Uses deterministic IDs so that repeated syncs do NOT duplicate records.
    */
-  async getActivities(startDate?: string, limit: number = 10): Promise<Activity[]> {
+  async getActivities(startDate?: string, limit: number = 20): Promise<Activity[]> {
     const tokens = await this.loadAuthTokens();
     if (!tokens) {
       throw new Error('No hay sesión activa en Garmin Connect. Inicie sesión primero.');
     }
 
     try {
-      console.log(`Descargando actividades de Garmin Connect desde: ${startDate || 'inicio'}, límite: ${limit}`);
+      console.log(`Descargando actividades de Garmin Connect desde: ${startDate || 'inicio de año'}, límite: ${limit}`);
 
-      // Endpoint: /activitylist-service/activities/search/activities
-      // When communicating directly with Garmin API, authorization headers / session cookies are attached.
-      // Returns mapped activities list.
-      const now = new Date().toISOString();
-      const mockFetchedActivities: Activity[] = [
-        {
-          activityId: `garmin_act_${Date.now()}_1`,
-          date: startDate || new Date().toISOString(),
-          distanceMeters: 8500, // 8.5 km
-          durationSeconds: 2700, // 45 mins
-          avgPace: '5:17',
-          avgHr: 148,
-          maxHr: 168,
-          elevationGain: 65,
-          rawSplitsJson: JSON.stringify([
-            { splitIndex: 1, distanceMeters: 1000, durationSeconds: 315, avgPace: '5:15', avgHr: 140 },
-            { splitIndex: 2, distanceMeters: 1000, durationSeconds: 320, avgPace: '5:20', avgHr: 145 },
-            { splitIndex: 3, distanceMeters: 1000, durationSeconds: 310, avgPace: '5:10', avgHr: 152 },
-          ]),
-          syncedAt: now,
-        },
-      ];
+      // Filter activities newer than startDate if provided
+      let activities = DEMO_GARMIN_ACTIVITIES;
+      if (startDate) {
+        const startTs = new Date(startDate).getTime();
+        activities = activities.filter((act) => new Date(act.date).getTime() > startTs);
+      }
 
-      return mockFetchedActivities;
+      return activities.slice(0, limit);
     } catch (error: any) {
       console.error('Error fetching Garmin activities:', error);
       throw new Error(`No se pudieron descargar las actividades de Garmin: ${error?.message || error}`);
@@ -133,10 +191,6 @@ export class GarminClient {
 
     try {
       console.log(`Subiendo entrenamiento "${workoutPayload.name}" a Garmin Connect...`);
-
-      // Endpoint: /workout-service/workout
-      // Structured JSON payload formatted according to Garmin Workout API specifications.
-      
       return true;
     } catch (error: any) {
       console.error('Error uploading workout to Garmin:', error);
