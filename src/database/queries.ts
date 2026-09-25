@@ -97,3 +97,9 @@ export function getAllWorkouts(): Workout[] {
 export function markWorkoutUploaded(id: string): void {
   db.runSync('UPDATE workouts SET isUploadedToGarmin = 1 WHERE id = ?;', [id]);
 }
+
+export function clearAllDatabaseData(): void {
+  db.execSync('DELETE FROM checkins;');
+  db.execSync('DELETE FROM activities;');
+  db.execSync('DELETE FROM workouts;');
+}

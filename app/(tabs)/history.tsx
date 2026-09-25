@@ -5,11 +5,13 @@ import {
   StyleSheet,
   FlatList,
   RefreshControl,
+  TouchableOpacity,
+  Alert,
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
-import { getAllActivities, getCheckInByActivityId } from '@/src/database/queries';
+import { getAllActivities, getCheckInByActivityId, clearAllDatabaseData } from '@/src/database/queries';
 import { Activity, CheckIn } from '@/src/types';
-import { Activity as RunIcon, Heart, MapPin, Clock, CheckCircle2, AlertTriangle, Calendar } from 'lucide-react-native';
+import { Activity as RunIcon, Heart, MapPin, Clock, CheckCircle2, AlertTriangle, Calendar, Trash2 } from 'lucide-react-native';
 
 export default function HistoryScreen() {
   const [activities, setActivities] = useState<Activity[]>([]);
@@ -36,6 +38,25 @@ export default function HistoryScreen() {
     setRefreshing(false);
   };
 
+  const handleClearDb = () => {
+    Alert.alert(
+      'Limpiar Base de Datos',
+      '¿Estás seguro de que deseas eliminar todas las actividades, check-ins y rutinas guardadas localmente?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar Todo',
+          style: 'destructive',
+          onPress: () => {
+            clearAllDatabaseData();
+            loadActivities();
+            Alert.alert('Base de datos limpia', 'Se han borrado los registros locales.');
+          },
+        },
+      ]
+    );
+  };
+
   const totalDistanceKm = activities
     .reduce((acc, act) => acc + act.distanceMeters, 0) / 1000;
 
@@ -52,6 +73,11 @@ export default function HistoryScreen() {
           <Text style={styles.summaryLabel}>Distancia Total</Text>
           <Text style={styles.summaryValue}>{totalDistanceKm.toFixed(1)} km</Text>
         </View>
+        <View style={styles.divider} />
+        <TouchableOpacity style={styles.clearDbBtn} onPress={handleClearDb}>
+          <Trash2 size={18} color="#FF3B30" />
+          <Text style={styles.clearDbText}>Reset DB</Text>
+        </TouchableOpacity>
       </View>
 
       <FlatList
@@ -253,5 +279,19 @@ const styles = StyleSheet.create({
     color: '#8E8E93',
     textAlign: 'center',
     lineHeight: 18,
+  },
+  clearDbBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(255, 59, 48, 0.12)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  clearDbText: {
+    color: '#FF3B30',
+    fontSize: 12,
+    fontWeight: '700',
   },
 });
