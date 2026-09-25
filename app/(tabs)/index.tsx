@@ -19,6 +19,7 @@ import {
 } from '@/src/database/queries';
 import { Activity, CheckIn, Workout } from '@/src/types';
 import { CheckInModal } from '@/src/components/CheckInModal';
+import { GarminLoginModal } from '@/src/components/GarminLoginModal';
 import { MetricCard } from '@/src/components/MetricCard';
 import { WorkoutCard } from '@/src/components/WorkoutCard';
 import {
@@ -29,18 +30,24 @@ import {
   AlertCircle,
   PlusCircle,
   TrendingUp,
+  ShieldCheck,
+  ShieldAlert,
 } from 'lucide-react-native';
 
 export default function DashboardScreen() {
   const [loadingSync, setLoadingSync] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [isGarminConnected, setIsGarminConnected] = useState(false);
   const [latestActivity, setLatestActivity] = useState<Activity | null>(null);
   const [latestCheckIn, setLatestCheckIn] = useState<CheckIn | null>(null);
   const [nextWorkout, setNextWorkout] = useState<Workout | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
+  const [garminModalVisible, setGarminModalVisible] = useState(false);
 
   const loadData = useCallback(() => {
     try {
+      garminClient.isLoggedIn().then(setIsGarminConnected);
+
       const activities = getAllActivities();
       if (activities.length > 0) {
         const topActivity = activities[0];
@@ -81,6 +88,12 @@ export default function DashboardScreen() {
   );
 
   const handleSync = async () => {
+    const loggedIn = await garminClient.isLoggedIn();
+    if (!loggedIn) {
+      setGarminModalVisible(true);
+      return;
+    }
+
     setLoadingSync(true);
     try {
       const syncedCount = await syncService.syncLatestActivities(10);
@@ -92,7 +105,11 @@ export default function DashboardScreen() {
           : 'Tu historial ya estaba al día con Garmin Connect.'
       );
     } catch (err: any) {
-      Alert.alert('Error de Sincronización', err?.message || 'No se pudo conectar a Garmin Connect.');
+      if (err?.message?.includes('No hay sesión activa')) {
+        setGarminModalVisible(true);
+      } else {
+        Alert.alert('Error de Sincronización', err?.message || 'No se pudo conectar a Garmin Connect.');
+      }
     } finally {
       setLoadingSync(false);
     }
@@ -100,6 +117,13 @@ export default function DashboardScreen() {
 
   const handleSendToGarmin = async (workoutId: string) => {
     if (!nextWorkout) return;
+
+    const loggedIn = await garminClient.isLoggedIn();
+    if (!loggedIn) {
+      setGarminModalVisible(true);
+      return;
+    }
+
     try {
       const success = await garminClient.uploadWorkout(nextWorkout);
       if (success) {
@@ -129,7 +153,7 @@ export default function DashboardScreen() {
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0A84FF" />
         }>
-        {/* Header Greeting */}
+        {/* Header Greeting & Garmin Status */}
         <View style={styles.headerRow}>
           <View>
             <Text style={styles.dateText}>{todayFormatted.toUpperCase()}</Text>
@@ -149,6 +173,30 @@ export default function DashboardScreen() {
             )}
           </TouchableOpacity>
         </View>
+
+        {/* Garmin Connection Banner */}
+        <TouchableOpacity
+          style={[
+            styles.garminBanner,
+            isGarminConnected ? styles.garminConnected : styles.garminDisconnected,
+          ]}
+          onPress={() => setGarminModalVisible(true)}>
+          <View style={styles.garminBannerRow}>
+            {isGarminConnected ? (
+              <ShieldCheck size={18} color="#30D158" />
+            ) : (
+              <ShieldAlert size={18} color="#FF9500" />
+            )}
+            <Text style={styles.garminBannerText}>
+              {isGarminConnected
+                ? 'Garmin Connect Vinculado'
+                : 'Garmin No Conectado — Toca para iniciar sesión'}
+            </Text>
+          </View>
+          <Text style={styles.garminBannerAction}>
+            {isGarminConnected ? 'Configurar' : 'Conectar'}
+          </Text>
+        </TouchableOpacity>
 
         {/* Status & Load Recovery Card */}
         <View style={styles.card}>
@@ -230,7 +278,9 @@ export default function DashboardScreen() {
               <AlertCircle size={24} color="#8E8E93" />
               <Text style={styles.emptyText}>No hay actividades registradas en SQLite aún.</Text>
               <TouchableOpacity style={styles.inlineSyncBtn} onPress={handleSync}>
-                <Text style={styles.inlineSyncText}>Sincronizar ahora</Text>
+                <Text style={styles.inlineSyncText}>
+                  {isGarminConnected ? 'Sincronizar ahora' : 'Iniciar Sesión en Garmin'}
+                </Text>
               </TouchableOpacity>
             </View>
           )}
@@ -260,6 +310,16 @@ export default function DashboardScreen() {
         onClose={() => setModalVisible(false)}
         onSuccess={loadData}
       />
+
+      {/* Garmin Login Modal */}
+      <GarminLoginModal
+        visible={garminModalVisible}
+        onClose={() => setGarminModalVisible(false)}
+        onSuccess={() => {
+          loadData();
+          handleSync();
+        }}
+      />
     </View>
   );
 }
@@ -271,13 +331,13 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 16,
-    gap: 16,
+    gap: 14,
   },
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   dateText: {
     fontSize: 11,
@@ -303,6 +363,40 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '600',
+  },
+  garminBanner: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  garminConnected: {
+    backgroundColor: 'rgba(48, 209, 88, 0.1)',
+    borderColor: 'rgba(48, 209, 88, 0.3)',
+  },
+  garminDisconnected: {
+    backgroundColor: 'rgba(255, 149, 0, 0.1)',
+    borderColor: 'rgba(255, 149, 0, 0.3)',
+  },
+  garminBannerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
+  garminBannerText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#E5E5EA',
+    flex: 1,
+  },
+  garminBannerAction: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#0A84FF',
   },
   card: {
     backgroundColor: '#1C1C1E',
