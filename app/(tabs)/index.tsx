@@ -96,7 +96,7 @@ export default function DashboardScreen() {
 
     setLoadingSync(true);
     try {
-      const syncedCount = await syncService.syncLatestActivities(10);
+      const syncedCount = await syncService.syncLatestActivities(100);
       loadData();
       Alert.alert(
         'Sincronización Exitosa',

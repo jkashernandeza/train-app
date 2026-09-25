@@ -157,7 +157,7 @@ export class GarminClient {
    * Fetches activities directly from Garmin Connect API filtered by optional start date and limit.
    * Uses deterministic IDs so that repeated syncs do NOT duplicate records.
    */
-  async getActivities(startDate?: string, limit: number = 20): Promise<Activity[]> {
+  async getActivities(startDate?: string, limit: number = 100): Promise<Activity[]> {
     const tokens = await this.loadAuthTokens();
     if (!tokens) {
       throw new Error('No hay sesión activa en Garmin Connect. Inicie sesión primero.');
@@ -166,8 +166,12 @@ export class GarminClient {
     try {
       console.log(`Descargando actividades de Garmin Connect desde: ${startDate || 'inicio de año'}, límite: ${limit}`);
 
+      // Copy and sort activities newest to oldest (DESC)
+      let activities = [...DEMO_GARMIN_ACTIVITIES].sort(
+        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+      );
+
       // Filter activities newer than startDate if provided
-      let activities = DEMO_GARMIN_ACTIVITIES;
       if (startDate) {
         const startTs = new Date(startDate).getTime();
         activities = activities.filter((act) => new Date(act.date).getTime() > startTs);
